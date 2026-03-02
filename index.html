@@ -66,20 +66,18 @@ var maxPoints = 60;
 function fetchPrice(pair, callback){
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function(){
-        if(xhr.readyState === 4){
-            if(xhr.status === 200){
-                try{
-                    var json = JSON.parse(xhr.responseText);
-                    callback(parseFloat(json.data.amount));
-                }catch(e){}
-            }
+        if(xhr.readyState === 4 && xhr.status === 200){
+            try{
+                var json = JSON.parse(xhr.responseText);
+                callback(parseFloat(json.data.amount));
+            }catch(e){}
         }
     };
     xhr.open("GET","https://api.coinbase.com/v2/prices/"+pair+"/spot",true);
     xhr.send();
 }
 
-function drawLine(canvas, data){
+function drawLine(canvas, data, color){
     var ctx = canvas.getContext("2d");
     ctx.clearRect(0,0,500,180);
 
@@ -90,18 +88,9 @@ function drawLine(canvas, data){
     var range = max - min;
     if(range === 0) range = 1;
 
-    // 🔥 dynamic color
-    var last = data[data.length-1];
-    var prev = data[data.length-2];
-
-    if(last > prev){
-        ctx.strokeStyle = "#00ff88";
-    }else{
-        ctx.strokeStyle = "#ff3b3b";
-    }
-
-    ctx.lineWidth = 2;
     ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
 
     for(var i=0;i<data.length;i++){
         var x = (i / (maxPoints-1)) * 500;
@@ -119,17 +108,23 @@ function update(){
     fetchPrice("BTC-USD",function(price){
         if(!price) return;
 
+        var prev = btcHistory.length > 0 ? btcHistory[btcHistory.length-1] : price;
+
         document.getElementById("btcPrice").innerHTML =
             "$"+price.toFixed(2);
 
         btcHistory.push(price);
         if(btcHistory.length > maxPoints) btcHistory.shift();
 
-        drawLine(document.getElementById("btcChart"),btcHistory);
+        var color = price > prev ? "#00ff88" : "#ff3b3b";
+
+        drawLine(document.getElementById("btcChart"),btcHistory,color);
     });
 
     fetchPrice("ETH-USD",function(price){
         if(!price) return;
+
+        var prev = ethHistory.length > 0 ? ethHistory[ethHistory.length-1] : price;
 
         document.getElementById("ethPrice").innerHTML =
             "$"+price.toFixed(2);
@@ -137,7 +132,9 @@ function update(){
         ethHistory.push(price);
         if(ethHistory.length > maxPoints) ethHistory.shift();
 
-        drawLine(document.getElementById("ethChart"),ethHistory);
+        var color = price > prev ? "#00ff88" : "#ff3b3b";
+
+        drawLine(document.getElementById("ethChart"),ethHistory,color);
     });
 }
 
