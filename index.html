@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BTCETH TEST</title>
+<title>BTCETH iOS Safe</title>
 
 <style>
 body{
@@ -34,13 +34,8 @@ body{
     text-shadow:0 0 20px rgba(255,255,255,0.2);
 }
 
-.up{
-    color:#00ff88;
-}
-
-.down{
-    color:#ff3b3b;
-}
+.up{ color:#00ff88; }
+.down{ color:#ff3b3b; }
 </style>
 </head>
 
@@ -60,10 +55,15 @@ body{
 let prevBTC=null;
 let prevETH=null;
 
-async function fetchSpot(symbol){
-    const res=await fetch(`https://api.coinbase.com/v2/prices/${symbol}-USD/spot`);
-    const data=await res.json();
-    return parseFloat(data.data.amount);
+function getJSON(url, callback){
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
+    xhr.onreadystatechange = function(){
+        if(xhr.readyState === 4 && xhr.status === 200){
+            callback(JSON.parse(xhr.responseText));
+        }
+    };
+    xhr.send();
 }
 
 function updateColor(el,current,previous){
@@ -73,28 +73,25 @@ function updateColor(el,current,previous){
     if(current<previous)el.classList.add("down");
 }
 
-async function update(){
-    try{
-        const btc=await fetchSpot("BTC");
-        const eth=await fetchSpot("ETH");
-
-        const btcEl=document.getElementById("btcPrice");
-        const ethEl=document.getElementById("ethPrice");
-
-        btcEl.innerText="$"+btc.toFixed(2);
-        ethEl.innerText="$"+eth.toFixed(2);
-
-        updateColor(btcEl,btc,prevBTC);
-        updateColor(ethEl,eth,prevETH);
-
+function update(){
+    getJSON("https://api.coinbase.com/v2/prices/BTC-USD/spot", function(data){
+        var btc = parseFloat(data.data.amount);
+        var el = document.getElementById("btcPrice");
+        el.innerText="$"+btc.toFixed(2);
+        updateColor(el,btc,prevBTC);
         prevBTC=btc;
+    });
+
+    getJSON("https://api.coinbase.com/v2/prices/ETH-USD/spot", function(data){
+        var eth = parseFloat(data.data.amount);
+        var el = document.getElementById("ethPrice");
+        el.innerText="$"+eth.toFixed(2);
+        updateColor(el,eth,prevETH);
         prevETH=eth;
-    }catch(e){
-        console.log("error",e);
-    }
+    });
 }
 
-document.addEventListener("DOMContentLoaded",()=>{
+document.addEventListener("DOMContentLoaded", function(){
     update();
     setInterval(update,10000);
 });
