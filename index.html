@@ -3,7 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BTCETH Line</title>
+<title>BTCETH</title>
+
+<!-- iOS standalone mode -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="BTCETH">
+<meta name="theme-color" content="#000000">
 
 <style>
 body{
@@ -18,7 +24,7 @@ body{
 }
 
 .card{
-    width:45%;
+    width:40%;
     text-align:center;
 }
 
@@ -34,8 +40,6 @@ body{
 
 canvas{
     margin-top:20px;
-    width:100%;
-    height:180px;
 }
 </style>
 </head>
@@ -45,13 +49,13 @@ canvas{
 <div class="card">
     <div class="symbol">BTC</div>
     <div class="price" id="btcPrice">--</div>
-    <canvas id="btcChart"></canvas>
+    <canvas id="btcChart" width="500" height="180"></canvas>
 </div>
 
 <div class="card">
     <div class="symbol">ETH</div>
     <div class="price" id="ethPrice">--</div>
-    <canvas id="ethChart"></canvas>
+    <canvas id="ethChart" width="500" height="180"></canvas>
 </div>
 
 <script>
@@ -60,53 +64,43 @@ var btcHistory = [];
 var ethHistory = [];
 var maxPoints = 60;
 
-function getJSON(url, callback){
+function fetchPrice(pair, callback){
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function(){
-        if(xhr.readyState === 4 && xhr.status === 200){
-            try{
-                var data = JSON.parse(xhr.responseText);
-                callback(data);
-            }catch(e){}
+        if(xhr.readyState === 4){
+            if(xhr.status === 200){
+                try{
+                    var json = JSON.parse(xhr.responseText);
+                    callback(parseFloat(json.data.amount));
+                }catch(e){}
+            }
         }
     };
-    xhr.open("GET", url, true);
+    xhr.open("GET","https://api.coinbase.com/v2/prices/"+pair+"/spot",true);
     xhr.send();
 }
 
 function drawLine(canvas, data){
     var ctx = canvas.getContext("2d");
-    var w = canvas.width = canvas.offsetWidth;
-    var h = canvas.height = 180;
-
-    ctx.clearRect(0,0,w,h);
+    ctx.clearRect(0,0,500,180);
 
     if(data.length < 2) return;
 
-    var min = data[0];
-    var max = data[0];
-
-    for(var i=1;i<data.length;i++){
-        if(data[i] < min) min = data[i];
-        if(data[i] > max) max = data[i];
-    }
-
+    var min = Math.min.apply(null,data);
+    var max = Math.max.apply(null,data);
     var range = max - min;
     if(range === 0) range = 1;
 
     ctx.beginPath();
-    ctx.lineWidth = 2;
     ctx.strokeStyle = "#00ff88";
+    ctx.lineWidth = 2;
 
     for(var i=0;i<data.length;i++){
-        var x = i * (w / (maxPoints - 1));
-        var y = h - ((data[i] - min) / range) * h;
+        var x = (i / (maxPoints-1)) * 500;
+        var y = 180 - ((data[i]-min)/range)*180;
 
-        if(i === 0){
-            ctx.moveTo(x,y);
-        }else{
-            ctx.lineTo(x,y);
-        }
+        if(i===0) ctx.moveTo(x,y);
+        else ctx.lineTo(x,y);
     }
 
     ctx.stroke();
@@ -114,40 +108,34 @@ function drawLine(canvas, data){
 
 function update(){
 
-    getJSON("https://api.coinbase.com/v2/prices/BTC-USD/spot", function(data){
-        if(data && data.data){
-            var btc = parseFloat(data.data.amount);
-            document.getElementById("btcPrice").innerHTML =
-                "$" + btc.toFixed(2);
+    fetchPrice("BTC-USD",function(price){
+        if(!price) return;
 
-            btcHistory.push(btc);
-            if(btcHistory.length > maxPoints){
-                btcHistory.shift();
-            }
+        document.getElementById("btcPrice").innerHTML =
+            "$"+price.toFixed(2);
 
-            drawLine(document.getElementById("btcChart"), btcHistory);
-        }
+        btcHistory.push(price);
+        if(btcHistory.length > maxPoints) btcHistory.shift();
+
+        drawLine(document.getElementById("btcChart"),btcHistory);
     });
 
-    getJSON("https://api.coinbase.com/v2/prices/ETH-USD/spot", function(data){
-        if(data && data.data){
-            var eth = parseFloat(data.data.amount);
-            document.getElementById("ethPrice").innerHTML =
-                "$" + eth.toFixed(2);
+    fetchPrice("ETH-USD",function(price){
+        if(!price) return;
 
-            ethHistory.push(eth);
-            if(ethHistory.length > maxPoints){
-                ethHistory.shift();
-            }
+        document.getElementById("ethPrice").innerHTML =
+            "$"+price.toFixed(2);
 
-            drawLine(document.getElementById("ethChart"), ethHistory);
-        }
+        ethHistory.push(price);
+        if(ethHistory.length > maxPoints) ethHistory.shift();
+
+        drawLine(document.getElementById("ethChart"),ethHistory);
     });
 }
 
 window.onload = function(){
     update();
-    setInterval(update, 10000);
+    setInterval(update,10000);
 };
 
 </script>
