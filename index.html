@@ -71,6 +71,36 @@ body{
 let prevBTC=null;
 let prevETH=null;
 
+const proxy = "https://corsproxy.io/?";
+
+async function fetchCandles(symbol){
+    const url = proxy + encodeURIComponent(`https://api.binance.com/api/v3/klines?symbol=${symbol}USDT&interval=1m&limit=60`);
+    const res=await fetch(url);
+    const data=await res.json();
+
+    return data.map(c=>({
+        time: Math.floor(c[0]/1000),
+        open: parseFloat(c[1]),
+        high: parseFloat(c[2]),
+        low: parseFloat(c[3]),
+        close: parseFloat(c[4])
+    }));
+}
+
+async function fetchSpot(symbol){
+    const url = proxy + encodeURIComponent(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}USDT`);
+    const res=await fetch(url);
+    const data=await res.json();
+    return parseFloat(data.price);
+}
+
+function updateColor(el,current,previous){
+    if(previous===null)return;
+    el.classList.remove("up","down");
+    if(current>previous)el.classList.add("up");
+    if(current<previous)el.classList.add("down");
+}
+
 function createChart(containerId){
     const container=document.getElementById(containerId);
 
@@ -102,42 +132,6 @@ function createChart(containerId){
     return series;
 }
 
-async function fetchCandles(symbol){
-    try{
-        const res=await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}USDT&interval=1m&limit=60`);
-        const data=await res.json();
-
-        return data.map(c=>({
-            time: Math.floor(c[0]/1000),
-            open: parseFloat(c[1]),
-            high: parseFloat(c[2]),
-            low: parseFloat(c[3]),
-            close: parseFloat(c[4])
-        }));
-    }catch(e){
-        console.log("candle error",e);
-        return [];
-    }
-}
-
-async function fetchSpot(symbol){
-    try{
-        const res=await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}USDT`);
-        const data=await res.json();
-        return parseFloat(data.price);
-    }catch(e){
-        console.log("spot error",e);
-        return null;
-    }
-}
-
-function updateColor(el,current,previous){
-    if(previous===null)return;
-    el.classList.remove("up","down");
-    if(current>previous)el.classList.add("up");
-    if(current<previous)el.classList.add("down");
-}
-
 async function start(){
     const btcSeries=createChart("btcChart");
     const ethSeries=createChart("ethChart");
@@ -145,8 +139,8 @@ async function start(){
     const btcData=await fetchCandles("BTC");
     const ethData=await fetchCandles("ETH");
 
-    if(btcData.length) btcSeries.setData(btcData);
-    if(ethData.length) ethSeries.setData(ethData);
+    btcSeries.setData(btcData);
+    ethSeries.setData(ethData);
 
     update();
     setInterval(update,10000);
@@ -159,17 +153,14 @@ async function update(){
     const btcEl=document.getElementById("btcPrice");
     const ethEl=document.getElementById("ethPrice");
 
-    if(btc!==null){
-        btcEl.innerText="$"+btc.toFixed(2);
-        updateColor(btcEl,btc,prevBTC);
-        prevBTC=btc;
-    }
+    btcEl.innerText="$"+btc.toFixed(2);
+    ethEl.innerText="$"+eth.toFixed(2);
 
-    if(eth!==null){
-        ethEl.innerText="$"+eth.toFixed(2);
-        updateColor(ethEl,eth,prevETH);
-        prevETH=eth;
-    }
+    updateColor(btcEl,btc,prevBTC);
+    updateColor(ethEl,eth,prevETH);
+
+    prevBTC=btc;
+    prevETH=eth;
 }
 
 document.addEventListener("DOMContentLoaded",start);
