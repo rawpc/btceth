@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BTCETH</title>
+<title>BTCETH WALL</title>
 
 <style>
 body{
@@ -13,36 +13,62 @@ body{
     font-family:sans-serif;
     display:flex;
     height:100vh;
-    align-items:center;
-    justify-content:space-around;
 }
+
+.wrapper{
+    display:flex;
+    width:100%;
+}
+
 .card{
-    width:45%;
+    width:50%;
     text-align:center;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding:40px;
 }
+
 .symbol{
-    font-size:28px;
-    opacity:0.6;
+    font-size:40px;
+    opacity:0.4;
+    letter-spacing:4px;
 }
+
 .price{
-    font-size:60px;
+    font-size:90px;
     font-weight:300;
+    margin:20px 0 30px 0;
 }
+
 .chart{
-    margin-top:20px;
-    height:120px;
+    height:160px;
     display:flex;
     align-items:flex-end;
 }
+
 .bar{
     flex:1;
     margin:0 1px;
+    background:#444;
+    transition:background 0.3s;
+}
+
+.upBar{
     background:#00ff88;
+    box-shadow:0 0 8px #00ff88;
+}
+
+.downBar{
+    background:#ff3b3b;
+    box-shadow:0 0 8px #ff3b3b;
 }
 </style>
 </head>
 
 <body>
+
+<div class="wrapper">
 
 <div class="card">
     <div class="symbol">BTC</div>
@@ -56,11 +82,13 @@ body{
     <div class="chart" id="ethChart"></div>
 </div>
 
+</div>
+
 <script>
 
 var btcHistory = [];
 var ethHistory = [];
-var maxPoints = 40;
+var maxPoints = 50;
 
 function getJSON(url, callback){
     var xhr = new XMLHttpRequest();
@@ -93,19 +121,30 @@ function drawBars(container, data){
     if(range === 0) range = 1;
 
     for(var i=0;i<data.length;i++){
+
         var bar = document.createElement("div");
         bar.className = "bar";
 
         var height = ((data[i] - min) / range) * 100;
         bar.style.height = height + "%";
 
+        if(i > 0){
+            if(data[i] > data[i-1]){
+                bar.className += " upBar";
+            }else if(data[i] < data[i-1]){
+                bar.className += " downBar";
+            }
+        }
+
         container.appendChild(bar);
     }
 }
 
 function update(){
+
     getJSON("https://api.coinbase.com/v2/prices/BTC-USD/spot", function(data){
         if(data && data.data){
+
             var btc = parseFloat(data.data.amount);
             document.getElementById("btcPrice").innerHTML =
                 "$" + btc.toFixed(2);
@@ -121,9 +160,27 @@ function update(){
 
     getJSON("https://api.coinbase.com/v2/prices/ETH-USD/spot", function(data){
         if(data && data.data){
+
             var eth = parseFloat(data.data.amount);
             document.getElementById("ethPrice").innerHTML =
                 "$" + eth.toFixed(2);
 
             ethHistory.push(eth);
-            if(ethHistory.length >
+            if(ethHistory.length > maxPoints){
+                ethHistory.shift();
+            }
+
+            drawBars(document.getElementById("ethChart"), ethHistory);
+        }
+    });
+}
+
+window.onload = function(){
+    update();
+    setInterval(update, 10000);
+};
+
+</script>
+
+</body>
+</html>
