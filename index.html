@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BTCETH</title>
+<title>BTCETH TEST</title>
 
 <style>
 body{
@@ -36,17 +36,10 @@ body{
 
 .up{
     color:#00ff88;
-    text-shadow:0 0 25px rgba(0,255,136,0.6);
 }
 
 .down{
     color:#ff3b3b;
-    text-shadow:0 0 25px rgba(255,59,59,0.6);
-}
-
-.chart{
-    margin-top:30px;
-    height:250px;
 }
 </style>
 </head>
@@ -56,42 +49,21 @@ body{
 <div class="card">
     <div class="symbol">BTC</div>
     <div class="price" id="btcPrice">--</div>
-    <div id="btcChart" class="chart"></div>
 </div>
 
 <div class="card">
     <div class="symbol">ETH</div>
     <div class="price" id="ethPrice">--</div>
-    <div id="ethChart" class="chart"></div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 
 <script>
 let prevBTC=null;
 let prevETH=null;
 
-const proxy = "https://corsproxy.io/?";
-
-async function fetchCandles(symbol){
-    const url = proxy + encodeURIComponent(`https://api.binance.com/api/v3/klines?symbol=${symbol}USDT&interval=1m&limit=60`);
-    const res=await fetch(url);
-    const data=await res.json();
-
-    return data.map(c=>({
-        time: Math.floor(c[0]/1000),
-        open: parseFloat(c[1]),
-        high: parseFloat(c[2]),
-        low: parseFloat(c[3]),
-        close: parseFloat(c[4])
-    }));
-}
-
 async function fetchSpot(symbol){
-    const url = proxy + encodeURIComponent(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}USDT`);
-    const res=await fetch(url);
+    const res=await fetch(`https://api.coinbase.com/v2/prices/${symbol}-USD/spot`);
     const data=await res.json();
-    return parseFloat(data.price);
+    return parseFloat(data.data.amount);
 }
 
 function updateColor(el,current,previous){
@@ -101,69 +73,31 @@ function updateColor(el,current,previous){
     if(current<previous)el.classList.add("down");
 }
 
-function createChart(containerId){
-    const container=document.getElementById(containerId);
+async function update(){
+    try{
+        const btc=await fetchSpot("BTC");
+        const eth=await fetchSpot("ETH");
 
-    const chart=LightweightCharts.createChart(container,{
-        width:container.clientWidth,
-        height:250,
-        layout:{
-            background:{color:"#000"},
-            textColor:"#888"
-        },
-        grid:{
-            vertLines:{color:"#111"},
-            horzLines:{color:"#111"}
-        }
-    });
+        const btcEl=document.getElementById("btcPrice");
+        const ethEl=document.getElementById("ethPrice");
 
-    const series=chart.addCandlestickSeries({
-        upColor:"#00ff88",
-        downColor:"#ff3b3b",
-        borderVisible:false,
-        wickUpColor:"#00ff88",
-        wickDownColor:"#ff3b3b"
-    });
+        btcEl.innerText="$"+btc.toFixed(2);
+        ethEl.innerText="$"+eth.toFixed(2);
 
-    window.addEventListener("resize",()=>{
-        chart.applyOptions({width:container.clientWidth});
-    });
+        updateColor(btcEl,btc,prevBTC);
+        updateColor(ethEl,eth,prevETH);
 
-    return series;
+        prevBTC=btc;
+        prevETH=eth;
+    }catch(e){
+        console.log("error",e);
+    }
 }
 
-async function start(){
-    const btcSeries=createChart("btcChart");
-    const ethSeries=createChart("ethChart");
-
-    const btcData=await fetchCandles("BTC");
-    const ethData=await fetchCandles("ETH");
-
-    btcSeries.setData(btcData);
-    ethSeries.setData(ethData);
-
+document.addEventListener("DOMContentLoaded",()=>{
     update();
     setInterval(update,10000);
-}
-
-async function update(){
-    const btc=await fetchSpot("BTC");
-    const eth=await fetchSpot("ETH");
-
-    const btcEl=document.getElementById("btcPrice");
-    const ethEl=document.getElementById("ethPrice");
-
-    btcEl.innerText="$"+btc.toFixed(2);
-    ethEl.innerText="$"+eth.toFixed(2);
-
-    updateColor(btcEl,btc,prevBTC);
-    updateColor(ethEl,eth,prevETH);
-
-    prevBTC=btc;
-    prevETH=eth;
-}
-
-document.addEventListener("DOMContentLoaded",start);
+});
 </script>
 
 </body>
