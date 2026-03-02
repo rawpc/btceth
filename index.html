@@ -3,41 +3,57 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BTC / ETH Live</title>
+<title>BTCETH</title>
+
+<link rel="manifest" href="manifest.json">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="BTCETH">
 
 <style>
 body {
-    margin: 0;
-    background: #000;
-    color: white;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    display: flex;
-    height: 100vh;
-    align-items: center;
-    justify-content: space-around;
+    margin:0;
+    background:#000;
+    color:white;
+    font-family:-apple-system, BlinkMacSystemFont, sans-serif;
+    display:flex;
+    height:100vh;
+    align-items:center;
+    justify-content:space-around;
 }
 
 .card {
-    text-align: center;
-    width: 40%;
+    width:45%;
+    text-align:center;
 }
 
 .symbol {
-    font-size: 32px;
-    opacity: 0.6;
-    margin-bottom: 10px;
+    font-size:28px;
+    opacity:0.6;
 }
 
 .price {
-    font-size: 80px;
-    font-weight: 300;
-    text-shadow: 0 0 15px rgba(255,255,255,0.25);
+    font-size:80px;
+    font-weight:300;
+    transition:0.3s ease;
+    text-shadow:0 0 20px rgba(255,255,255,0.2);
+}
+
+.up {
+    color:#00ff88;
+    text-shadow:0 0 25px rgba(0,255,136,0.6);
+}
+
+.down {
+    color:#ff3b3b;
+    text-shadow:0 0 25px rgba(255,59,59,0.6);
 }
 
 canvas {
-    margin-top: 30px;
-    width: 100%;
-    height: 150px;
+    margin-top:30px;
+    width:100%;
+    height:200px;
 }
 </style>
 </head>
@@ -56,69 +72,83 @@ canvas {
     <canvas id="ethChart"></canvas>
 </div>
 
-<script>
-const btcHistory = [];
-const ethHistory = [];
-const maxPoints = 40;
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 
-async function fetchPrice(symbol) {
+<script>
+let prevBTC = null;
+let prevETH = null;
+
+async function fetchCandle(symbol) {
+    const res = await fetch(`https://api.exchange.coinbase.com/products/${symbol}-USD/candles?granularity=60`);
+    const data = await res.json();
+    return data.slice(0, 60).reverse();
+}
+
+async function fetchSpot(symbol) {
     const res = await fetch(`https://api.coinbase.com/v2/prices/${symbol}-USD/spot`);
     const data = await res.json();
     return parseFloat(data.data.amount);
 }
 
-function drawChart(canvasId, data) {
-    const canvas = document.getElementById(canvasId);
-    const ctx = canvas.getContext("2d");
-    const width = canvas.width = canvas.offsetWidth;
-    const height = canvas.height = canvas.offsetHeight;
+function updateColor(el, current, previous) {
+    if (previous === null) return;
+    el.classList.remove("up","down");
+    if (current > previous) el.classList.add("up");
+    if (current < previous) el.classList.add("down");
+}
 
-    ctx.clearRect(0,0,width,height);
-
-    if (data.length < 2) return;
-
-    const min = Math.min(...data);
-    const max = Math.max(...data);
-    const range = max - min || 1;
-
-    ctx.beginPath();
-    ctx.strokeStyle = "#ff3b3b";
-    ctx.lineWidth = 2;
-
-    data.forEach((value, i) => {
-        const x = (i / (data.length - 1)) * width;
-        const y = height - ((value - min) / range) * height;
-        if (i === 0) ctx.moveTo(x,y);
-        else ctx.lineTo(x,y);
+async function initChart(symbol, containerId) {
+    const chart = LightweightCharts.createChart(
+        document.getElementById(containerId),
+        { layout:{background:{color:'#000'},textColor:'#888'},
+          grid:{vertLines:{color:'#111'},horzLines:{color:'#111'}}}
+    );
+    const candleSeries = chart.addCandlestickSeries({
+        upColor:'#00ff88',
+        downColor:'#ff3b3b',
+        borderVisible:false,
+        wickUpColor:'#00ff88',
+        wickDownColor:'#ff3b3b'
     });
 
-    ctx.stroke();
+    const candles = await fetchCandle(symbol);
+
+    candleSeries.setData(
+        candles.map(c => ({
+            time: c[0],
+            open: c[3],
+            high: c[2],
+            low: c[1],
+            close: c[4]
+        }))
+    );
+
+    return { chart, candleSeries };
 }
 
 async function update() {
-    try {
-        const btc = await fetchPrice("BTC");
-        const eth = await fetchPrice("ETH");
+    const btc = await fetchSpot("BTC");
+    const eth = await fetchSpot("ETH");
 
-        document.getElementById("btcPrice").innerText = `$${btc.toFixed(2)}`;
-        document.getElementById("ethPrice").innerText = `$${eth.toFixed(2)}`;
+    const btcEl = document.getElementById("btcPrice");
+    const ethEl = document.getElementById("ethPrice");
 
-        btcHistory.push(btc);
-        ethHistory.push(eth);
+    btcEl.innerText = "$" + btc.toFixed(2);
+    ethEl.innerText = "$" + eth.toFixed(2);
 
-        if (btcHistory.length > maxPoints) btcHistory.shift();
-        if (ethHistory.length > maxPoints) ethHistory.shift();
+    updateColor(btcEl, btc, prevBTC);
+    updateColor(ethEl, eth, prevETH);
 
-        drawChart("btcChart", btcHistory);
-        drawChart("ethChart", ethHistory);
-
-    } catch(e) {
-        console.error("API error", e);
-    }
+    prevBTC = btc;
+    prevETH = eth;
 }
 
-update();
-setInterval(update, 60000);
+(async function(){
+    await initChart("BTC","btcChart");
+    await initChart("ETH","ethChart");
+    update();
+    setInterval(update,60000);
+})();
 </script>
 
 </body>
