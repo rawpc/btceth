@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BTCETH Legacy</title>
+<title>BTCETH</title>
 
 <style>
 body{
     margin:0;
     background:#000;
     color:white;
-    font-family:sans-serif;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     display:flex;
     height:100vh;
     align-items:center;
@@ -28,7 +28,7 @@ body{
 }
 
 .price{
-    font-size:60px;
+    font-size:80px;
     font-weight:300;
 }
 </style>
@@ -47,42 +47,32 @@ body{
 </div>
 
 <script>
-function getJSON(url, success){
-    var xhr = new XMLHttpRequest();
-    xhr.onreadystatechange = function(){
-        if(xhr.readyState === 4){
-            if(xhr.status === 200){
-                try{
-                    var data = JSON.parse(xhr.responseText);
-                    success(data);
-                }catch(e){}
-            }
-        }
-    };
-    xhr.open("GET", url, true);
-    xhr.send();
+let prevBTC = null;
+let prevETH = null;
+
+async function fetchSpot(symbol){
+    const res = await fetch("https://api.coinbase.com/v2/prices/" + symbol + "-USD/spot");
+    const data = await res.json();
+    return parseFloat(data.data.amount);
 }
 
-function update(){
-    getJSON("https://api.coinbase.com/v2/prices/BTC-USD/spot", function(data){
-        if(data && data.data){
-            document.getElementById("btcPrice").innerHTML =
-                "$" + parseFloat(data.data.amount).toFixed(2);
-        }
-    });
+async function update(){
+    try{
+        const btc = await fetchSpot("BTC");
+        const eth = await fetchSpot("ETH");
 
-    getJSON("https://api.coinbase.com/v2/prices/ETH-USD/spot", function(data){
-        if(data && data.data){
-            document.getElementById("ethPrice").innerHTML =
-                "$" + parseFloat(data.data.amount).toFixed(2);
-        }
-    });
+        document.getElementById("btcPrice").innerText = "$" + btc.toFixed(2);
+        document.getElementById("ethPrice").innerText = "$" + eth.toFixed(2);
+
+    }catch(e){
+        console.log("error", e);
+    }
 }
 
-window.onload = function(){
+document.addEventListener("DOMContentLoaded", function(){
     update();
-    setInterval(update,10000);
-};
+    setInterval(update, 10000);
+});
 </script>
 
 </body>
