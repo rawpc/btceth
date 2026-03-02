@@ -28,10 +28,16 @@ body{
     font-size:60px;
     font-weight:300;
 }
-canvas{
+.chart{
     margin-top:20px;
-    width:100%;
-    height:180px;
+    height:120px;
+    display:flex;
+    align-items:flex-end;
+}
+.bar{
+    flex:1;
+    margin:0 1px;
+    background:#00ff88;
 }
 </style>
 </head>
@@ -41,23 +47,20 @@ canvas{
 <div class="card">
     <div class="symbol">BTC</div>
     <div class="price" id="btcPrice">--</div>
-    <canvas id="btcChart"></canvas>
+    <div class="chart" id="btcChart"></div>
 </div>
 
 <div class="card">
     <div class="symbol">ETH</div>
     <div class="price" id="ethPrice">--</div>
-    <canvas id="ethChart"></canvas>
+    <div class="chart" id="ethChart"></div>
 </div>
 
 <script>
 
-var prevBTC = null;
-var prevETH = null;
-
 var btcHistory = [];
 var ethHistory = [];
-var maxPoints = 60;
+var maxPoints = 40;
 
 function getJSON(url, callback){
     var xhr = new XMLHttpRequest();
@@ -73,17 +76,14 @@ function getJSON(url, callback){
     xhr.send();
 }
 
-function drawChart(canvas, data){
-    var ctx = canvas.getContext("2d");
-    var w = canvas.width = canvas.offsetWidth;
-    var h = canvas.height = 180;
-
-    ctx.clearRect(0,0,w,h);
+function drawBars(container, data){
+    container.innerHTML = "";
 
     if(data.length < 2) return;
 
     var min = data[0];
     var max = data[0];
+
     for(var i=1;i<data.length;i++){
         if(data[i] < min) min = data[i];
         if(data[i] > max) max = data[i];
@@ -92,22 +92,15 @@ function drawChart(canvas, data){
     var range = max - min;
     if(range === 0) range = 1;
 
-    ctx.beginPath();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#00ff88";
-
     for(var i=0;i<data.length;i++){
-        var x = i * (w / (maxPoints - 1));
-        var y = h - ((data[i] - min) / range) * h;
+        var bar = document.createElement("div");
+        bar.className = "bar";
 
-        if(i === 0){
-            ctx.moveTo(x,y);
-        }else{
-            ctx.lineTo(x,y);
-        }
+        var height = ((data[i] - min) / range) * 100;
+        bar.style.height = height + "%";
+
+        container.appendChild(bar);
     }
-
-    ctx.stroke();
 }
 
 function update(){
@@ -122,7 +115,7 @@ function update(){
                 btcHistory.shift();
             }
 
-            drawChart(document.getElementById("btcChart"), btcHistory);
+            drawBars(document.getElementById("btcChart"), btcHistory);
         }
     });
 
@@ -133,21 +126,4 @@ function update(){
                 "$" + eth.toFixed(2);
 
             ethHistory.push(eth);
-            if(ethHistory.length > maxPoints){
-                ethHistory.shift();
-            }
-
-            drawChart(document.getElementById("ethChart"), ethHistory);
-        }
-    });
-}
-
-window.onload = function(){
-    update();
-    setInterval(update, 10000);
-};
-
-</script>
-
-</body>
-</html>
+            if(ethHistory.length >
