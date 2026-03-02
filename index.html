@@ -10,44 +10,28 @@ body{
     margin:0;
     background:#000;
     color:white;
-    font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-family:sans-serif;
     display:flex;
     height:100vh;
     align-items:center;
     justify-content:space-around;
 }
-
 .card{
     width:45%;
     text-align:center;
 }
-
 .symbol{
     font-size:28px;
     opacity:0.6;
 }
-
 .price{
-    font-size:80px;
+    font-size:60px;
     font-weight:300;
-    transition:0.3s ease;
-    text-shadow:0 0 20px rgba(255,255,255,0.2);
 }
-
-.up{
-    color:#00ff88;
-    text-shadow:0 0 25px rgba(0,255,136,0.6);
-}
-
-.down{
-    color:#ff3b3b;
-    text-shadow:0 0 25px rgba(255,59,59,0.6);
-}
-
 canvas{
-    margin-top:30px;
+    margin-top:20px;
     width:100%;
-    height:200px;
+    height:180px;
 }
 </style>
 </head>
@@ -67,48 +51,56 @@ canvas{
 </div>
 
 <script>
-let prevBTC=null;
-let prevETH=null;
 
-let btcHistory=[];
-let ethHistory=[];
-const maxPoints=60;
+var prevBTC = null;
+var prevETH = null;
 
-async function fetchSpot(symbol){
-    const res=await fetch("https://api.coinbase.com/v2/prices/"+symbol+"-USD/spot");
-    const data=await res.json();
-    return parseFloat(data.data.amount);
+var btcHistory = [];
+var ethHistory = [];
+var maxPoints = 60;
+
+function getJSON(url, callback){
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function(){
+        if(xhr.readyState === 4 && xhr.status === 200){
+            try{
+                var data = JSON.parse(xhr.responseText);
+                callback(data);
+            }catch(e){}
+        }
+    };
+    xhr.open("GET", url, true);
+    xhr.send();
 }
 
-function updateColor(el,current,previous){
-    if(previous===null)return;
-    el.classList.remove("up","down");
-    if(current>previous)el.classList.add("up");
-    if(current<previous)el.classList.add("down");
-}
-
-function drawChart(canvas,data,color){
-    const ctx=canvas.getContext("2d");
-    const w=canvas.width=canvas.offsetWidth;
-    const h=canvas.height=200;
+function drawChart(canvas, data){
+    var ctx = canvas.getContext("2d");
+    var w = canvas.width = canvas.offsetWidth;
+    var h = canvas.height = 180;
 
     ctx.clearRect(0,0,w,h);
 
-    if(data.length<2)return;
+    if(data.length < 2) return;
 
-    const min=Math.min.apply(null,data);
-    const max=Math.max.apply(null,data);
-    const range=max-min || 1;
+    var min = data[0];
+    var max = data[0];
+    for(var i=1;i<data.length;i++){
+        if(data[i] < min) min = data[i];
+        if(data[i] > max) max = data[i];
+    }
+
+    var range = max - min;
+    if(range === 0) range = 1;
 
     ctx.beginPath();
-    ctx.lineWidth=2;
-    ctx.strokeStyle=color;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#00ff88";
 
-    for(let i=0;i<data.length;i++){
-        const x=i*(w/(maxPoints-1));
-        const y=h-((data[i]-min)/range)*h;
+    for(var i=0;i<data.length;i++){
+        var x = i * (w / (maxPoints - 1));
+        var y = h - ((data[i] - min) / range) * h;
 
-        if(i===0){
+        if(i === 0){
             ctx.moveTo(x,y);
         }else{
             ctx.lineTo(x,y);
@@ -118,41 +110,43 @@ function drawChart(canvas,data,color){
     ctx.stroke();
 }
 
-async function update(){
-    try{
-        const btc=await fetchSpot("BTC");
-        const eth=await fetchSpot("ETH");
+function update(){
+    getJSON("https://api.coinbase.com/v2/prices/BTC-USD/spot", function(data){
+        if(data && data.data){
+            var btc = parseFloat(data.data.amount);
+            document.getElementById("btcPrice").innerHTML =
+                "$" + btc.toFixed(2);
 
-        const btcEl=document.getElementById("btcPrice");
-        const ethEl=document.getElementById("ethPrice");
+            btcHistory.push(btc);
+            if(btcHistory.length > maxPoints){
+                btcHistory.shift();
+            }
 
-        btcEl.innerText="$"+btc.toFixed(2);
-        ethEl.innerText="$"+eth.toFixed(2);
+            drawChart(document.getElementById("btcChart"), btcHistory);
+        }
+    });
 
-        updateColor(btcEl,btc,prevBTC);
-        updateColor(ethEl,eth,prevETH);
+    getJSON("https://api.coinbase.com/v2/prices/ETH-USD/spot", function(data){
+        if(data && data.data){
+            var eth = parseFloat(data.data.amount);
+            document.getElementById("ethPrice").innerHTML =
+                "$" + eth.toFixed(2);
 
-        prevBTC=btc;
-        prevETH=eth;
+            ethHistory.push(eth);
+            if(ethHistory.length > maxPoints){
+                ethHistory.shift();
+            }
 
-        btcHistory.push(btc);
-        ethHistory.push(eth);
-
-        if(btcHistory.length>maxPoints)btcHistory.shift();
-        if(ethHistory.length>maxPoints)ethHistory.shift();
-
-        drawChart(document.getElementById("btcChart"),btcHistory,"#00ff88");
-        drawChart(document.getElementById("ethChart"),ethHistory,"#ff3b3b");
-
-    }catch(e){
-        console.log("error",e);
-    }
+            drawChart(document.getElementById("ethChart"), ethHistory);
+        }
+    });
 }
 
-document.addEventListener("DOMContentLoaded",function(){
+window.onload = function(){
     update();
-    setInterval(update,10000);
-});
+    setInterval(update, 10000);
+};
+
 </script>
 
 </body>
