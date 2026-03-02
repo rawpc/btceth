@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BTCETH iOS Safe</title>
+<title>BTCETH Legacy</title>
 
 <style>
 body{
     margin:0;
     background:#000;
     color:white;
-    font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-family:sans-serif;
     display:flex;
     height:100vh;
     align-items:center;
@@ -28,14 +28,9 @@ body{
 }
 
 .price{
-    font-size:80px;
+    font-size:60px;
     font-weight:300;
-    transition:0.3s ease;
-    text-shadow:0 0 20px rgba(255,255,255,0.2);
 }
-
-.up{ color:#00ff88; }
-.down{ color:#ff3b3b; }
 </style>
 </head>
 
@@ -52,49 +47,42 @@ body{
 </div>
 
 <script>
-let prevBTC=null;
-let prevETH=null;
-
-function getJSON(url, callback){
+function getJSON(url, success){
     var xhr = new XMLHttpRequest();
-    xhr.open("GET", url, true);
     xhr.onreadystatechange = function(){
-        if(xhr.readyState === 4 && xhr.status === 200){
-            callback(JSON.parse(xhr.responseText));
+        if(xhr.readyState === 4){
+            if(xhr.status === 200){
+                try{
+                    var data = JSON.parse(xhr.responseText);
+                    success(data);
+                }catch(e){}
+            }
         }
     };
+    xhr.open("GET", url, true);
     xhr.send();
-}
-
-function updateColor(el,current,previous){
-    if(previous===null)return;
-    el.classList.remove("up","down");
-    if(current>previous)el.classList.add("up");
-    if(current<previous)el.classList.add("down");
 }
 
 function update(){
     getJSON("https://api.coinbase.com/v2/prices/BTC-USD/spot", function(data){
-        var btc = parseFloat(data.data.amount);
-        var el = document.getElementById("btcPrice");
-        el.innerText="$"+btc.toFixed(2);
-        updateColor(el,btc,prevBTC);
-        prevBTC=btc;
+        if(data && data.data){
+            document.getElementById("btcPrice").innerHTML =
+                "$" + parseFloat(data.data.amount).toFixed(2);
+        }
     });
 
     getJSON("https://api.coinbase.com/v2/prices/ETH-USD/spot", function(data){
-        var eth = parseFloat(data.data.amount);
-        var el = document.getElementById("ethPrice");
-        el.innerText="$"+eth.toFixed(2);
-        updateColor(el,eth,prevETH);
-        prevETH=eth;
+        if(data && data.data){
+            document.getElementById("ethPrice").innerHTML =
+                "$" + parseFloat(data.data.amount).toFixed(2);
+        }
     });
 }
 
-document.addEventListener("DOMContentLoaded", function(){
+window.onload = function(){
     update();
     setInterval(update,10000);
-});
+};
 </script>
 
 </body>
