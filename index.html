@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTC / ETH Live</title>
+
+<style>
+body {
+    margin: 0;
+    background: #000;
+    color: white;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    display: flex;
+    height: 100vh;
+    align-items: center;
+    justify-content: space-around;
+}
+
+.card {
+    text-align: center;
+    width: 40%;
+}
+
+.symbol {
+    font-size: 32px;
+    opacity: 0.6;
+    margin-bottom: 10px;
+}
+
+.price {
+    font-size: 80px;
+    font-weight: 300;
+    text-shadow: 0 0 15px rgba(255,255,255,0.25);
+}
+
+canvas {
+    margin-top: 30px;
+    width: 100%;
+    height: 150px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+    <div class="symbol">BTC</div>
+    <div class="price" id="btcPrice">--</div>
+    <canvas id="btcChart"></canvas>
+</div>
+
+<div class="card">
+    <div class="symbol">ETH</div>
+    <div class="price" id="ethPrice">--</div>
+    <canvas id="ethChart"></canvas>
+</div>
+
+<script>
+const btcHistory = [];
+const ethHistory = [];
+const maxPoints = 40;
+
+async function fetchPrice(symbol) {
+    const res = await fetch(`https://api.coinbase.com/v2/prices/${symbol}-USD/spot`);
+    const data = await res.json();
+    return parseFloat(data.data.amount);
+}
+
+function drawChart(canvasId, data) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext("2d");
+    const width = canvas.width = canvas.offsetWidth;
+    const height = canvas.height = canvas.offsetHeight;
+
+    ctx.clearRect(0,0,width,height);
+
+    if (data.length < 2) return;
+
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || 1;
+
+    ctx.beginPath();
+    ctx.strokeStyle = "#ff3b3b";
+    ctx.lineWidth = 2;
+
+    data.forEach((value, i) => {
+        const x = (i / (data.length - 1)) * width;
+        const y = height - ((value - min) / range) * height;
+        if (i === 0) ctx.moveTo(x,y);
+        else ctx.lineTo(x,y);
+    });
+
+    ctx.stroke();
+}
+
+async function update() {
+    try {
+        const btc = await fetchPrice("BTC");
+        const eth = await fetchPrice("ETH");
+
+        document.getElementById("btcPrice").innerText = `$${btc.toFixed(2)}`;
+        document.getElementById("ethPrice").innerText = `$${eth.toFixed(2)}`;
+
+        btcHistory.push(btc);
+        ethHistory.push(eth);
+
+        if (btcHistory.length > maxPoints) btcHistory.shift();
+        if (ethHistory.length > maxPoints) ethHistory.shift();
+
+        drawChart("btcChart", btcHistory);
+        drawChart("ethChart", ethHistory);
+
+    } catch(e) {
+        console.error("API error", e);
+    }
+}
+
+update();
+setInterval(update, 60000);
+</script>
+
+</body>
+</html>
