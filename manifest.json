@@ -60,7 +60,27 @@ body{
     letter-spacing:2px;
     margin-top:5px;
 }
+.range-switch{
+    margin-top:10px;
+    font-size:13px;
+    letter-spacing:2px;
+    opacity:0.5;
+}
 
+.range-switch span{
+    margin:0 6px;
+    cursor:pointer;
+    transition:0.2s;
+}
+
+.range-switch span:hover{
+    opacity:1;
+}
+
+.range-switch .active{
+    opacity:1;
+    color:#00ff88;
+}
 </style>
 </head>
 
