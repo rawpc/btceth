@@ -1,15 +1,185 @@
-{
-  "name": "BTCETH",
-  "short_name": "BTCETH",
-  "start_url": ".",
-  "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
-  "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    }
-  ]
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTCETH</title>
+
+<link rel="manifest" href="manifest.json">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="BTCETH">
+
+<style>
+body{
+    margin:0;
+    background:#000;
+    color:white;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    display:flex;
+    height:100vh;
+    align-items:center;
+    justify-content:space-around;
 }
+
+.card{
+    width:45%;
+    text-align:center;
+}
+
+.symbol{
+    font-size:28px;
+    opacity:0.6;
+}
+
+.price{
+    font-size:80px;
+    font-weight:300;
+    transition:0.3s ease;
+    text-shadow:0 0 20px rgba(255,255,255,0.2);
+}
+
+.up{
+    color:#00ff88;
+    text-shadow:0 0 25px rgba(0,255,136,0.6);
+}
+
+.down{
+    color:#ff3b3b;
+    text-shadow:0 0 25px rgba(255,59,59,0.6);
+}
+
+.chart{
+    margin-top:30px;
+    height:250px;
+}
+.period{
+    font-size:14px;
+    opacity:0.4;
+    letter-spacing:2px;
+    margin-top:5px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="card">
+    <div class="symbol">BTC</div>
+    <div class="price" id="btcPrice">--</div>
+    <div id="btcChart" class="chart"></div>
+</div>
+
+<div class="card">
+    <div class="symbol">ETH</div>
+    <div class="price" id="ethPrice">--</div>
+    <div id="ethChart" class="chart"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+
+<script>
+let prevBTC=null;
+let prevETH=null;
+
+async function fetchCandle(symbol){
+    const res=await fetch(`https://api.exchange.coinbase.com/products/${symbol}-USD/candles?granularity=60`);
+    const data=await res.json();
+    return data.slice(0,60).reverse();
+}
+
+async function fetchSpot(symbol){
+    const res=await fetch(`https://api.coinbase.com/v2/prices/${symbol}-USD/spot`);
+    const data=await res.json();
+    return parseFloat(data.data.amount);
+}
+
+function updateColor(el,current,previous){
+    if(previous===null)return;
+    el.classList.remove("up","down");
+    if(current>previous)el.classList.add("up");
+    if(current<previous)el.classList.add("down");
+}
+
+function createChart(containerId){
+    const container=document.getElementById(containerId);
+
+    const chart=LightweightCharts.createChart(container,{
+        width:container.clientWidth,
+        height:250,
+        layout:{
+            background:{color:"#000"},
+            textColor:"#888"
+        },
+        grid:{
+            vertLines:{color:"#111"},
+            horzLines:{color:"#111"}
+        }
+    });
+
+    const candleSeries=chart.addCandlestickSeries({
+        upColor:"#00ff88",
+        downColor:"#ff3b3b",
+        borderVisible:false,
+        wickUpColor:"#00ff88",
+        wickDownColor:"#ff3b3b"
+    });
+
+    window.addEventListener("resize",()=>{
+        chart.applyOptions({width:container.clientWidth});
+    });
+
+    return candleSeries;
+}
+
+async function init(){
+    const btcSeries=createChart("btcChart");
+    const ethSeries=createChart("ethChart");
+
+    const btcCandles=await fetchCandle("BTC");
+    const ethCandles=await fetchCandle("ETH");
+
+    btcSeries.setData(btcCandles.map(c=>({
+        time:c[0],
+        open:c[3],
+        high:c[2],
+        low:c[1],
+        close:c[4]
+    })));
+
+    ethSeries.setData(ethCandles.map(c=>({
+        time:c[0],
+        open:c[3],
+        high:c[2],
+        low:c[1],
+        close:c[4]
+    })));
+
+    update();
+    setInterval(update,60000);
+}
+
+async function update(){
+    const btc=await fetchSpot("BTC");
+    const eth=await fetchSpot("ETH");
+
+    const btcEl=document.getElementById("btcPrice");
+    const ethEl=document.getElementById("ethPrice");
+
+    btcEl.innerText="$"+btc.toFixed(2);
+    ethEl.innerText="$"+eth.toFixed(2);
+
+    updateColor(btcEl,btc,prevBTC);
+    updateColor(ethEl,eth,prevETH);
+
+    prevBTC=btc;
+    prevETH=eth;
+}
+
+init();
+</script>
+
+</body>
+</html>
