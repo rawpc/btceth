@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>BTCETH Line</title>
+<title>BTCETH 6M</title>
 
 <style>
 body{
@@ -29,14 +29,14 @@ body{
 }
 
 .price{
-    font-size:70px;
+    font-size:60px;
     font-weight:300;
 }
 
 canvas{
     margin-top:20px;
     width:100%;
-    height:180px;
+    height:220px;
 }
 </style>
 </head>
@@ -59,7 +59,6 @@ canvas{
 
 var btcHistory = [];
 var ethHistory = [];
-var maxPoints = 60;
 
 function getJSON(url, callback){
     var xhr = new XMLHttpRequest();
@@ -76,9 +75,10 @@ function getJSON(url, callback){
 }
 
 function drawLine(canvas, data){
+
     var ctx = canvas.getContext("2d");
     var w = canvas.width = canvas.offsetWidth;
-    var h = canvas.height = 180;
+    var h = canvas.height = 220;
 
     ctx.clearRect(0,0,w,h);
 
@@ -95,51 +95,85 @@ function drawLine(canvas, data){
     var range = max - min;
     if(range === 0) range = 1;
 
-    ctx.beginPath();
+    // Kolor zależny od trendu 6 miesięcy
+    var first = data[0];
+    var last = data[data.length - 1];
+
+    if(last >= first){
+        ctx.strokeStyle = "#00ff88";
+    } else {
+        ctx.strokeStyle = "#ff3b3b";
+    }
+
     ctx.lineWidth = 2;
-    ctx.strokeStyle = "#00ff88";
+    ctx.beginPath();
+
+    var points = [];
 
     for(var i=0;i<data.length;i++){
-        var x = i * (w / (maxPoints - 1));
+        var x = i * (w / (data.length - 1));
         var y = h - ((data[i] - min) / range) * h;
-
-        if(i === 0){
-            ctx.moveTo(x,y);
-        }else{
-            ctx.lineTo(x,y);
-        }
+        points.push({x:x, y:y});
     }
+
+    ctx.moveTo(points[0].x, points[0].y);
+
+    for(var i=1;i<points.length-1;i++){
+        var midX = (points[i].x + points[i+1].x) / 2;
+        var midY = (points[i].y + points[i+1].y) / 2;
+
+        ctx.quadraticCurveTo(
+            points[i].x,
+            points[i].y,
+            midX,
+            midY
+        );
+    }
+
+    ctx.lineTo(
+        points[points.length-1].x,
+        points[points.length-1].y
+    );
 
     ctx.stroke();
 }
 
-function update(){
+function loadHistorical(){
 
-    getJSON("https://api.coinbase.com/v2/prices/BTC-USD/spot", function(data){
-        if(data && data.data){
-            var btc = parseFloat(data.data.amount);
-            document.getElementById("btcPrice").innerHTML =
-                "$" + btc.toFixed(2);
+    var btcUrl = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=180";
+    var ethUrl = "https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=180";
 
-            btcHistory.push(btc);
-            if(btcHistory.length > maxPoints){
-                btcHistory.shift();
+    getJSON(btcUrl, function(data){
+        if(data && data.prices){
+
+            btcHistory = [];
+
+            for(var i=0;i<data.prices.length;i++){
+                btcHistory.push(data.prices[i][1]);
             }
+
+            var lastPrice = btcHistory[btcHistory.length-1];
+
+            document.getElementById("btcPrice").innerHTML =
+                "$" + lastPrice.toFixed(2);
 
             drawLine(document.getElementById("btcChart"), btcHistory);
         }
     });
 
-    getJSON("https://api.coinbase.com/v2/prices/ETH-USD/spot", function(data){
-        if(data && data.data){
-            var eth = parseFloat(data.data.amount);
-            document.getElementById("ethPrice").innerHTML =
-                "$" + eth.toFixed(2);
+    getJSON(ethUrl, function(data){
+        if(data && data.prices){
 
-            ethHistory.push(eth);
-            if(ethHistory.length > maxPoints){
-                ethHistory.shift();
+            ethHistory = [];
+
+            for(var i=0;i<data.prices.length;i++){
+                ethHistory.push(data.prices[i][1]);
             }
+
+            var lastPrice = ethHistory[ethHistory.length-1];
+
+            document.getElementById("ethPrice").innerHTML =
+                "$" + lastPrice.toFixed(2);
 
             drawLine(document.getElementById("ethChart"), ethHistory);
         }
@@ -147,8 +181,7 @@ function update(){
 }
 
 window.onload = function(){
-    update();
-    setInterval(update, 10000);
+    loadHistorical();
 };
 
 </script>
